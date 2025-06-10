@@ -1,6 +1,7 @@
 package org.example;
 
 public class Register {
+
     private int value;
     private boolean modified;
 
@@ -36,7 +37,6 @@ public class Register {
         return modified;
     }
 
-
     public void resetModifiedFlag() {
         this.modified = false;
     }
@@ -55,6 +55,9 @@ public class Register {
     }
 
     public String toBinaryString() {
-        return String.format("0b%32s", Integer.toBinaryString(value)).replace(' ', '0');
+        return String.format("0b%32s", Integer.toBinaryString(value)).replace(
+            ' ',
+            '0'
+        );
     }
 }
