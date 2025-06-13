@@ -17,28 +17,25 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.Priority; // MODIFICATION: Import Priority
+import javafx.scene.layout.Region;
+import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
+import javafx.scene.paint.Color;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
+import javafx.util.Callback;
+import javafx.scene.Parent;
 
 public class Main extends Application {
 
     private RegisterSet registerSet;
     private TableView<RegisterRow> registerTable;
-    private TextArea dumpArea;
     private Label statusLabel;
     private DatabaseManager dbManager;
-
-    private static final String BG_PRIMARY = "#1a1a1a";
-    private static final String BG_SECONDARY = "#2d2d2d";
-    private static final String BG_CARD = "#333333";
-    private static final String TEXT_PRIMARY = "#ffffff";
-    private static final String TEXT_SECONDARY = "#b0b0b0";
-    private static final String ACCENT = "#007acc";
-    private static final String SUCCESS = "#28a745";
-    private static final String ERROR = "#dc3545";
-    private static final String WARNING = "#ffc107";
-    private static final String BORDER = "#404040";
 
     @Override
     public void start(Stage primaryStage) {
@@ -68,49 +65,45 @@ public class Main extends Application {
 
         VBox root = new VBox(20);
         root.setPadding(new Insets(20));
-        root.setStyle("-fx-background-color: " + BG_PRIMARY + ";");
+        root.setAlignment(Pos.CENTER);
+        root.getStyleClass().add("root");
 
         Label headerLabel = new Label("CPU Register Simulator");
-        headerLabel.setStyle(
-            "-fx-text-fill: " +
-            TEXT_PRIMARY +
-            "; -fx-font-size: 24px; -fx-font-weight: bold;"
-        );
+        headerLabel.getStyleClass().add("label");
+        headerLabel.setStyle("-fx-font-size: 28px; -fx-font-weight: 700; -fx-padding: 0 0 16px 0;");
 
         HBox mainContent = new HBox(20);
-        mainContent.setAlignment(Pos.TOP_CENTER);
+        mainContent.setAlignment(Pos.CENTER);
+        mainContent.setPadding(new Insets(16, 0, 16, 0));
 
         VBox leftPanel = createRegisterPanel();
         VBox rightPanel = createControlPanel();
 
+        // MODIFICATION: Set Hgrow policy to allow the right panel to expand
+        HBox.setHgrow(rightPanel, Priority.ALWAYS);
+
+        leftPanel.setPadding(new Insets(10));
+        rightPanel.setPadding(new Insets(10));
+
         mainContent.getChildren().addAll(leftPanel, rightPanel);
 
         statusLabel = new Label("Ready");
-        statusLabel.setStyle(
-            "-fx-text-fill: " +
-            TEXT_SECONDARY +
-            "; -fx-font-size: 12px; -fx-padding: 10px;"
-        );
-        statusLabel.setStyle(
-            statusLabel.getStyle() +
-            "-fx-background-color: " +
-            BG_SECONDARY +
-            "; -fx-background-radius: 4px;"
-        );
+        statusLabel.getStyleClass().add("label");
+        statusLabel.setStyle("-fx-font-size: 13px; -fx-padding: 14px; -fx-background-radius: 8px;");
 
         root.getChildren().addAll(headerLabel, mainContent, statusLabel);
 
         Scene scene = new Scene(root, 900, 600);
+        scene.getStylesheets().add(getClass().getResource("/org/example/styles.css").toExternalForm());
         primaryStage.setScene(scene);
         primaryStage.show();
 
         refreshRegisterTable();
-        dumpRegisters();
 
         String initialStatus = stateToLoad.isPresent() && stateToLoad.get() > 0
             ? "Successfully loaded saved state."
             : "New session started.";
-        showStatus(initialStatus, SUCCESS);
+        showStatus(initialStatus, "success");
     }
 
     /**
@@ -228,34 +221,21 @@ public class Main extends Application {
 
     // --- UI Creation Methods ---
 
+    @SuppressWarnings({"unchecked", "deprecation"})
     private VBox createRegisterPanel() {
         VBox panel = new VBox(15);
-        panel.setPrefWidth(400);
+        panel.setPrefWidth(400); // MODIFICATION: Set a preferred width for the left panel
+        panel.setMinWidth(350);  // MODIFICATION: Set a minimum width
+        panel.setPadding(new Insets(18));
+        panel.setAlignment(Pos.TOP_CENTER);
+        panel.getStyleClass().add("card");
 
         Label title = new Label("Registers");
-        title.setStyle(
-            "-fx-text-fill: " +
-            TEXT_PRIMARY +
-            "; -fx-font-size: 16px; -fx-font-weight: bold;"
-        );
+        title.getStyleClass().addAll("label", "title-label");
 
         registerTable = new TableView<>();
-        registerTable.setStyle(
-            "-fx-background-color: " +
-            BG_CARD +
-            "; " +
-            "-fx-control-inner-background: " +
-            BG_CARD +
-            "; " +
-            "-fx-table-cell-border-color: " +
-            BORDER +
-            "; " +
-            "-fx-border-color: " +
-            BORDER +
-            "; " +
-            "-fx-border-radius: 8px;"
-        );
         registerTable.setPrefHeight(300);
+        VBox.setVgrow(registerTable, Priority.ALWAYS); // MODIFICATION: Allow table to grow vertically
 
         TableColumn<RegisterRow, String> nameCol = new TableColumn<>("Name");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -269,9 +249,7 @@ public class Main extends Application {
         decCol.setCellValueFactory(new PropertyValueFactory<>("decValue"));
         decCol.setPrefWidth(100);
 
-        TableColumn<RegisterRow, String> statusCol = new TableColumn<>(
-            "Status"
-        );
+        TableColumn<RegisterRow, String> statusCol = new TableColumn<>("Status");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setPrefWidth(80);
 
@@ -280,102 +258,65 @@ public class Main extends Application {
             TableView.CONSTRAINED_RESIZE_POLICY
         );
 
-        Label dumpTitle = new Label("Register Dump");
-        dumpTitle.setStyle(
-            "-fx-text-fill: " +
-            TEXT_PRIMARY +
-            "; -fx-font-size: 14px; -fx-font-weight: bold;"
-        );
-
-        dumpArea = new TextArea();
-        dumpArea.setEditable(false);
-        dumpArea.setPrefHeight(150);
-        dumpArea.setStyle(
-            "-fx-control-inner-background: " +
-            BG_CARD +
-            "; " +
-            "-fx-text-fill: " +
-            TEXT_PRIMARY +
-            "; " +
-            "-fx-font-family: 'Consolas', 'Monaco', monospace; " +
-            "-fx-font-size: 11px; " +
-            "-fx-border-color: " +
-            BORDER +
-            "; " +
-            "-fx-border-radius: 8px;"
-        );
-
-        panel.getChildren().addAll(title, registerTable, dumpTitle, dumpArea);
+        panel.getChildren().addAll(title, registerTable);
         return panel;
     }
 
+    // MODIFICATION: Main control panel setup
     private VBox createControlPanel() {
         VBox panel = new VBox(20);
-        panel.setPrefWidth(350);
+        panel.setPadding(new Insets(0)); // MODIFICATION: Padding is now handled by individual cards
+        panel.setAlignment(Pos.TOP_CENTER);
+
         VBox writeSection = createWriteSection();
         VBox opsSection = createOperationsSection();
         VBox controlSection = createControlButtons();
+
         panel.getChildren().addAll(writeSection, opsSection, controlSection);
         return panel;
     }
 
-    /**
-     * MODIFIED: "Save State" button is removed.
-     */
+    // MODIFICATION: Cleaned up control buttons section
     private VBox createControlButtons() {
         VBox section = new VBox(8);
+        section.setAlignment(Pos.CENTER_LEFT);
+        section.setPadding(new Insets(14));
+        section.getStyleClass().add("card");
 
-        Button refreshBtn = createButton("Refresh", ACCENT);
-        refreshBtn.setPrefWidth(120);
-        refreshBtn.setOnAction(e -> {
-            refreshRegisterTable();
-            dumpRegisters();
-            showStatus("Display refreshed", SUCCESS);
-        });
-
-        Button clearBtn = createButton("Clear All", ERROR);
+        Button clearBtn = createButton("Clear All", "button-error");
         clearBtn.setPrefWidth(120);
         clearBtn.setOnAction(e -> clearAllRegisters());
 
-        section.getChildren().addAll(refreshBtn, clearBtn);
+        section.getChildren().addAll(clearBtn);
         return section;
     }
 
-    /**
-     * MODIFIED: Uses a ComboBox for register selection.
-     */
+    // MODIFICATION: Adjusted layout for better alignment
     private VBox createWriteSection() {
         VBox section = new VBox(10);
-        section.setPadding(new Insets(15));
-        section.setStyle(
-            "-fx-background-color: " +
-            BG_CARD +
-            "; -fx-border-color: " +
-            BORDER +
-            "; -fx-border-radius: 8px;"
-        );
+        section.setPadding(new Insets(18));
+        section.setAlignment(Pos.CENTER_LEFT);
+        section.getStyleClass().add("card");
 
         Label title = new Label("Write Register");
-        title.setStyle(
-            "-fx-text-fill: " +
-            TEXT_PRIMARY +
-            "; -fx-font-size: 14px; -fx-font-weight: bold;"
-        );
+        title.getStyleClass().addAll("label", "title-label");
+        title.setStyle("-fx-font-size: 15px; -fx-font-weight: 600; -fx-padding: 0 0 8px 0;");
 
         HBox inputRow = new HBox(10);
         inputRow.setAlignment(Pos.CENTER_LEFT);
+        inputRow.setPadding(new Insets(5, 0, 0, 0));
 
         ComboBox<String> regSelector = createRegisterComboBox();
-        regSelector.setPrefWidth(75);
+        regSelector.setPrefWidth(90); // MODIFICATION: Standardized width
 
         Label equalLabel = new Label("=");
-        equalLabel.setStyle(
-            "-fx-text-fill: " + TEXT_SECONDARY + "; -fx-font-size: 14px;"
-        );
-        TextField valueField = createTextField("123", 100);
+        equalLabel.getStyleClass().add("label");
+        equalLabel.setStyle("-fx-text-fill: -fx-text-secondary; -fx-font-size: 14px;");
 
-        Button writeBtn = createButton("Write", ACCENT);
-        // Pass the ComboBox value directly to the handler
+        TextField valueField = createTextField("123", 100);
+        HBox.setHgrow(valueField, Priority.ALWAYS); // MODIFICATION: Allow value field to grow
+
+        Button writeBtn = createButton("Write", "button-accent");
         writeBtn.setOnAction(e ->
             performWrite(
                 regSelector.getValue(),
@@ -399,129 +340,59 @@ public class Main extends Application {
         return section;
     }
 
-    /**
-     * MODIFIED: Uses ComboBoxes for all register selections.
-     */
+    // MODIFICATION: Reworked layout for perfect alignment
     private VBox createOperationsSection() {
-        VBox section = new VBox(10);
-        section.setPadding(new Insets(15));
-        section.setStyle(
-            "-fx-background-color: " +
-            BG_CARD +
-            "; -fx-border-color: " +
-            BORDER +
-            "; -fx-border-radius: 8px;"
-        );
+        VBox section = new VBox(15); // MODIFICATION: Increased spacing
+        section.setPadding(new Insets(18));
+        section.setAlignment(Pos.CENTER_LEFT);
+        section.getStyleClass().add("card");
 
         Label title = new Label("Operations");
-        title.setStyle(
-            "-fx-text-fill: " +
-            TEXT_PRIMARY +
-            "; -fx-font-size: 14px; -fx-font-weight: bold;"
-        );
+        title.getStyleClass().addAll("label", "title-label");
+        title.setStyle("-fx-font-size: 15px; -fx-font-weight: 600; -fx-padding: 0 0 8px 0;");
 
         // --- Math Operations ---
-        Label mathLabel = new Label("Math: Reg1 OP Reg2 → Dest");
-        mathLabel.setStyle(
-            "-fx-text-fill: " + TEXT_SECONDARY + "; -fx-font-size: 11px;"
-        );
+        Label mathLabel = new Label("Math: Reg1 OP Reg2 = Dest");
+        mathLabel.getStyleClass().add("label");
+        mathLabel.setStyle("-fx-text-fill: -fx-text-secondary; -fx-font-size: 11px;");
 
-        HBox mathFields = new HBox(5);
+        HBox mathFields = new HBox(10); // MODIFICATION: Standardized spacing
         mathFields.setAlignment(Pos.CENTER_LEFT);
 
         ComboBox<String> mathSrc1 = createRegisterComboBox();
         ComboBox<String> mathSrc2 = createRegisterComboBox();
         ComboBox<String> mathDest = createRegisterComboBox();
-        // Set default values to avoid nulls
         if (registerSet.size() > 2) {
             mathSrc1.setValue("R0");
             mathSrc2.setValue("R1");
             mathDest.setValue("R2");
         }
 
-        ComboBox<String> opSelector = new ComboBox<>();
-        opSelector.getItems().addAll("+", "-", "×", "÷");
-        opSelector.setValue("+");
-        opSelector.setPrefWidth(50);
-
-        // Enhanced styling for operation selector
-        opSelector.setStyle(
-            "-fx-background-color: " +
-            BG_SECONDARY +
-            "; " +
-            "-fx-text-fill: " +
-            TEXT_PRIMARY +
-            "; " +
-            "-fx-border-color: " +
-            BORDER +
-            "; " +
-            "-fx-border-radius: 4px; " +
-            "-fx-background-radius: 4px;"
+        ComboBox<Operation> opSelector = new ComboBox<>();
+        opSelector.getItems().addAll(
+            new Operation("add", "+"),
+            new Operation("sub", "-"),
+            new Operation("mul", "×"),
+            new Operation("div", "÷")
         );
+        opSelector.setValue(opSelector.getItems().get(0));
+        opSelector.setPrefWidth(70); // MODIFICATION: Adjusted width
+        opSelector.getStyleClass().add("combo-box");
+        Callback<ListView<Operation>, ListCell<Operation>> opFactory = createStyledCellFactory();
+        opSelector.setCellFactory(opFactory);
+        opSelector.setButtonCell(opFactory.call(null));
 
-        // Set cell factory for dropdown items
-        opSelector.setCellFactory(listView ->
-            new ListCell<String>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                        setGraphic(null);
-                    } else {
-                        setText(item);
-                        setStyle(
-                            "-fx-background-color: " +
-                            BG_SECONDARY +
-                            "; " +
-                            "-fx-text-fill: " +
-                            TEXT_PRIMARY +
-                            "; " +
-                            "-fx-padding: 4px 8px;"
-                        );
-                    }
-                }
-            }
-        );
+        Label mathArrow = new Label("=");
+        mathArrow.getStyleClass().add("label");
+        mathArrow.setStyle("-fx-text-fill: -fx-text-secondary; -fx-font-size: 14px;");
 
-        // Set button cell for selected value
-        opSelector.setButtonCell(
-            new ListCell<String>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                        setGraphic(null);
-                    } else {
-                        setText(item);
-                        setStyle(
-                            "-fx-background-color: transparent; " +
-                            "-fx-text-fill: " +
-                            TEXT_PRIMARY +
-                            "; " +
-                            "-fx-padding: 4px 8px;"
-                        );
-                    }
-                }
-            }
-        );
+        // MODIFICATION: Create a spacer to push the button to the right
+        Region spacer1 = new Region();
+        HBox.setHgrow(spacer1, Priority.ALWAYS);
 
-        Label mathArrow = new Label("→");
-        mathArrow.setStyle(
-            "-fx-text-fill: " + TEXT_SECONDARY + "; -fx-font-size: 14px;"
-        );
-
-        Button executeBtn = createButton("Execute", ACCENT);
+        Button executeBtn = createButton("Execute", "button-accent");
         executeBtn.setOnAction(e -> {
-            String op =
-                switch (opSelector.getValue()) {
-                    case "+" -> "add";
-                    case "-" -> "sub";
-                    case "×" -> "mul";
-                    case "÷" -> "div";
-                    default -> "add";
-                };
+            Operation op = opSelector.getValue();
             performOperation(
                 op,
                 mathSrc1.getValue(),
@@ -533,21 +404,15 @@ public class Main extends Application {
         mathFields
             .getChildren()
             .addAll(
-                mathSrc1,
-                opSelector,
-                mathSrc2,
-                mathArrow,
-                mathDest,
-                executeBtn
+                mathSrc1, opSelector, mathSrc2, mathArrow, mathDest, spacer1, executeBtn
             );
 
         // --- Copy Operation ---
         Label copyLabel = new Label("Copy: Source → Dest");
-        copyLabel.setStyle(
-            "-fx-text-fill: " + TEXT_SECONDARY + "; -fx-font-size: 11px;"
-        );
+        copyLabel.getStyleClass().add("label");
+        copyLabel.setStyle("-fx-text-fill: -fx-text-secondary; -fx-font-size: 11px;");
 
-        HBox copyFields = new HBox(5);
+        HBox copyFields = new HBox(10); // MODIFICATION: Standardized spacing
         copyFields.setAlignment(Pos.CENTER_LEFT);
 
         ComboBox<String> copySrc = createRegisterComboBox();
@@ -558,20 +423,23 @@ public class Main extends Application {
         }
 
         Label copyArrow = new Label("→");
-        copyArrow.setStyle(
-            "-fx-text-fill: " + TEXT_SECONDARY + "; -fx-font-size: 14px;"
-        );
+        copyArrow.getStyleClass().add("label");
+        copyArrow.setStyle("-fx-text-fill: -fx-text-secondary; -fx-font-size: 14px;");
 
-        Button copyBtn = createButton("Copy", TEXT_SECONDARY);
+        // MODIFICATION: Create another spacer
+        Region spacer2 = new Region();
+        HBox.setHgrow(spacer2, Priority.ALWAYS);
+
+        Button copyBtn = createButton("Copy", "button-accent");
         copyBtn.setOnAction(e ->
             performCopy(copySrc.getValue(), copyDest.getValue())
         );
 
-        copyFields.getChildren().addAll(copySrc, copyArrow, copyDest, copyBtn);
+        copyFields.getChildren().addAll(copySrc, copyArrow, copyDest, spacer2, copyBtn);
 
         section
             .getChildren()
-            .addAll(title, mathLabel, mathFields, copyLabel, copyFields);
+            .addAll(title, mathLabel, mathFields, new Separator(), copyLabel, copyFields); // MODIFICATION: Added Separator
         return section;
     }
 
@@ -580,133 +448,44 @@ public class Main extends Application {
     private TextField createTextField(String prompt, int width) {
         TextField field = new TextField();
         field.setPromptText(prompt);
-        field.setPrefWidth(width);
-        field.setStyle(
-            "-fx-background-color: " +
-            BG_SECONDARY +
-            "; " +
-            "-fx-text-fill: " +
-            TEXT_PRIMARY +
-            "; " +
-            "-fx-border-color: " +
-            BORDER +
-            "; " +
-            "-fx-border-radius: 4px; " +
-            "-fx-padding: 6px;"
-        );
-
-        field
-            .focusedProperty()
-            .addListener((obs, oldVal, newVal) -> {
-                if (newVal) {
-                    field.setStyle(field.getStyle().replace(BORDER, ACCENT));
-                } else {
-                    field.setStyle(field.getStyle().replace(ACCENT, BORDER));
-                }
-            });
-
+        // MODIFICATION: Let HGrow manage width instead of a fixed preferred width
+        // field.setPrefWidth(width);
+        field.getStyleClass().add("text-field");
         return field;
     }
 
-    private Button createButton(String text, String color) {
+    private Button createButton(String text, String styleClass) {
         Button button = new Button(text);
-        button.setStyle(
-            "-fx-background-color: " +
-            color +
-            "; " +
-            "-fx-text-fill: white; " +
-            "-fx-font-size: 11px; " +
-            "-fx-border-radius: 4px; " +
-            "-fx-background-radius: 4px; " +
-            "-fx-padding: 6 12 6 12; " +
-            "-fx-cursor: hand;"
-        );
-
-        button.setOnMouseEntered(e -> button.setOpacity(0.8));
-        button.setOnMouseExited(e -> button.setOpacity(1.0));
-
+        button.getStyleClass().addAll("button", styleClass);
         return button;
     }
 
-    /**
-     * FIXED: Helper method to create a styled ComboBox for register selection with proper text visibility.
-     */
+    private <T> Callback<ListView<T>, ListCell<T>> createStyledCellFactory() {
+        return lv -> {
+            ListCell<T> cell = new ListCell<>() {
+                @Override protected void updateItem(T item, boolean empty) {
+                    super.updateItem(item, empty);
+                    setText(empty ? null : item == null ? null : item.toString());
+                }
+            };
+            cell.getStyleClass().add("label");
+            return cell;
+        };
+    }
+
     private ComboBox<String> createRegisterComboBox() {
-        ObservableList<String> registerNames =
-            FXCollections.observableArrayList();
+        ObservableList<String> names = FXCollections.observableArrayList();
         for (int i = 0; i < registerSet.size(); i++) {
-            registerNames.add("R" + i);
+            names.add("R" + i);
         }
-        ComboBox<String> comboBox = new ComboBox<>(registerNames);
-        if (!registerNames.isEmpty()) {
-            comboBox.setValue(registerNames.get(0));
-        }
-        comboBox.setPrefWidth(75);
-
-        // Enhanced styling with proper text color and cell styling
-        comboBox.setStyle(
-            "-fx-background-color: " +
-            BG_SECONDARY +
-            "; " +
-            "-fx-text-fill: " +
-            TEXT_PRIMARY +
-            "; " +
-            "-fx-border-color: " +
-            BORDER +
-            "; " +
-            "-fx-border-radius: 4px; " +
-            "-fx-background-radius: 4px;"
-        );
-
-        // Set cell factory to ensure dropdown items are visible
-        comboBox.setCellFactory(listView ->
-            new ListCell<String>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                        setGraphic(null);
-                    } else {
-                        setText(item);
-                        setStyle(
-                            "-fx-background-color: " +
-                            BG_SECONDARY +
-                            "; " +
-                            "-fx-text-fill: " +
-                            TEXT_PRIMARY +
-                            "; " +
-                            "-fx-padding: 4px 8px;"
-                        );
-                    }
-                }
-            }
-        );
-
-        // Set button cell to ensure selected value is visible
-        comboBox.setButtonCell(
-            new ListCell<String>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                        setGraphic(null);
-                    } else {
-                        setText(item);
-                        setStyle(
-                            "-fx-background-color: transparent; " +
-                            "-fx-text-fill: " +
-                            TEXT_PRIMARY +
-                            "; " +
-                            "-fx-padding: 4px 8px;"
-                        );
-                    }
-                }
-            }
-        );
-
-        return comboBox;
+        ComboBox<String> cb = new ComboBox<>(names);
+        if (!names.isEmpty()) cb.setValue(names.get(0));
+        cb.setPrefWidth(90); // MODIFICATION: Standardized width
+        cb.getStyleClass().add("combo-box");
+        Callback<ListView<String>, ListCell<String>> factory = createStyledCellFactory();
+        cb.setCellFactory(factory);
+        cb.setButtonCell(factory.call(null));
+        return cb;
     }
 
     // --- Action Handler Methods ---
@@ -725,7 +504,7 @@ public class Main extends Application {
             valueText == null ||
             valueText.isEmpty()
         ) {
-            showStatus("Please select a register and enter a value", WARNING);
+            showStatus("Please select a register and enter a value", "warning");
             return;
         }
 
@@ -734,34 +513,35 @@ public class Main extends Application {
             registerSet.write(regName, value);
 
             refreshRegisterTable();
-            dumpRegisters();
 
             showStatus(
                 String.format("Written %s = %d", regName, value),
-                SUCCESS
+                "success"
             );
 
             valueField.clear(); // Only clear the value field
         } catch (Exception e) {
-            showStatus("Error: " + e.getMessage(), ERROR);
+            showStatus("Error: " + e.getMessage(), "error");
         }
     }
 
+    private record Operation(String name, String symbol) {
+        @Override
+        public String toString() { return symbol; }
+    }
+
     private void performOperation(
-        String op,
+        Operation op,
         String reg1,
         String reg2,
         String dest
     ) {
-        if (reg1 == null || reg2 == null || dest == null) {
-            showStatus(
-                "Please select all registers for the operation",
-                WARNING
-            );
+        if (op == null || reg1 == null || reg2 == null || dest == null) {
+            showStatus("Please select all registers for the operation", "warning");
             return;
         }
         try {
-            switch (op) {
+            switch (op.name()) {
                 case "add" -> registerSet.add(reg1, reg2, dest);
                 case "sub" -> registerSet.subtract(reg1, reg2, dest);
                 case "mul" -> registerSet.multiply(reg1, reg2, dest);
@@ -769,23 +549,12 @@ public class Main extends Application {
             }
 
             refreshRegisterTable();
-            dumpRegisters();
-
-            String symbol =
-                switch (op) {
-                    case "add" -> "+";
-                    case "sub" -> "-";
-                    case "mul" -> "×";
-                    case "div" -> "÷";
-                    default -> "?";
-                };
-
             showStatus(
-                String.format("%s %s %s → %s", reg1, symbol, reg2, dest),
-                SUCCESS
+                String.format("%s %s %s → %s", reg1, op.symbol(), reg2, dest),
+                "success"
             );
         } catch (Exception e) {
-            showStatus("Error: " + e.getMessage(), ERROR);
+            showStatus("Error: " + e.getMessage(), "error");
         }
     }
 
@@ -793,17 +562,16 @@ public class Main extends Application {
         if (source == null || dest == null) {
             showStatus(
                 "Please select source and destination registers",
-                WARNING
+                "warning"
             );
             return;
         }
         try {
             registerSet.copy(source, dest);
             refreshRegisterTable();
-            dumpRegisters();
-            showStatus(String.format("Copied %s → %s", source, dest), SUCCESS);
+            showStatus(String.format("Copied %s → %s", source, dest), "success");
         } catch (Exception e) {
-            showStatus("Error: " + e.getMessage(), ERROR);
+            showStatus("Error: " + e.getMessage(), "error");
         }
     }
 
@@ -841,10 +609,6 @@ public class Main extends Application {
         registerTable.setItems(data);
     }
 
-    private void dumpRegisters() {
-        dumpArea.setText(registerSet.getDumpString());
-    }
-
     private void clearAllRegisters() {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Clear All Registers");
@@ -855,24 +619,20 @@ public class Main extends Application {
         if (result.isPresent() && result.get() == ButtonType.OK) {
             registerSet.clearAll();
             refreshRegisterTable();
-            dumpRegisters();
-            showStatus("All registers have been cleared.", SUCCESS);
+            showStatus("All registers have been cleared.", "success");
         }
     }
 
-    private void showStatus(String message, String color) {
+    private void showStatus(String message, String type) {
         statusLabel.setText(message);
-        statusLabel.setStyle(
-            "-fx-text-fill: " +
-            color +
-            "; " +
-            "-fx-font-size: 12px; " +
-            "-fx-padding: 10px; " +
-            "-fx-background-color: " +
-            BG_SECONDARY +
-            "; " +
-            "-fx-background-radius: 4px;"
-        );
+        statusLabel.getStyleClass().removeAll("status-success", "status-error", "status-warning");
+        String cssClass = switch (type) {
+            case "success" -> "status-success";
+            case "error" -> "status-error";
+            case "warning" -> "status-warning";
+            default -> "status-success";
+        };
+        statusLabel.getStyleClass().add(cssClass);
 
         FadeTransition fade = new FadeTransition(
             Duration.seconds(4),
@@ -884,17 +644,8 @@ public class Main extends Application {
             statusLabel.setText(
                 "Ready - " + registerSet.size() + " registers initialized"
             );
-            statusLabel.setStyle(
-                "-fx-text-fill: " +
-                TEXT_SECONDARY +
-                "; " +
-                "-fx-font-size: 12px; " +
-                "-fx-padding: 10px; " +
-                "-fx-background-color: " +
-                BG_SECONDARY +
-                "; " +
-                "-fx-background-radius: 4px;"
-            );
+            statusLabel.getStyleClass().removeAll("status-success", "status-error", "status-warning");
+            statusLabel.getStyleClass().add("status-success");
         });
         fade.play();
     }
